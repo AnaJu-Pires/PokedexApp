@@ -1,18 +1,19 @@
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, Alert } from "react-native";
+import { StyleSheet, Text, TouchableOpacity } from "react-native";
 import { capitalize } from "../utils/format";
+import { useNavigation } from "@react-navigation/native";
 
 interface PokemonCardProps {
   name: string;
 }
 
 export const PokemonCard = ({ name }: PokemonCardProps) => {
+  const navigation = useNavigation<any>();
+
   return (
     <TouchableOpacity
       style={styles.card}
-      onPress={() =>
-        Alert.alert("Pokémon", `Você selecionou o ${capitalize(name)}!`)
-      }
+      onPress={() => navigation.navigate("PokemonDetail", { pokemonName: name })}
     >
       <Text style={styles.name}>{capitalize(name)}</Text>
       <Text style={styles.arrow}>›</Text>
