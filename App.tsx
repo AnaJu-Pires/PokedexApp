@@ -1,12 +1,6 @@
 import React, { useState, useEffect } from "react";
-import {
-  StyleSheet,
-  Text,
-  View,
-  ActivityIndicator,
-  FlatList,
-} from "react-native";
-// usei isso pois o SafeAreaView ia ficar deprecated e pesquisei uma alternativa
+import { StyleSheet, Text, View, ActivityIndicator } from "react-native";
+// usei isso pois o SafeAreaView nativo vai ser deprecated e pesquisei uma alternativa recomendada
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 interface Pokemon {
@@ -17,14 +11,21 @@ interface Pokemon {
 export default function App() {
   const [loading, setLoading] = useState<boolean>(true);
   const [pokemons, setPokemons] = useState<Pokemon[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
-  // exercício 1: Estado de Loading
   useEffect(() => {
-    
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 2000);
-    return () => clearTimeout(timer);
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        setLoading(false);
+      } catch (err) {
+        setError("Falha ao carregar Pokémons. Verifique sua conexão.");
+        setLoading(false);
+      }
+    };
+    loadData();
   }, []);
 
   if (loading) {
@@ -32,6 +33,14 @@ export default function App() {
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#ff0000" />
         <Text style={styles.loadingText}>Carregando Pokédex...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.errorText}>{error}</Text>
       </View>
     );
   }
@@ -65,6 +74,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    padding: 20,
   },
   header: {
     padding: 20,
@@ -78,6 +88,11 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 10,
+    fontSize: 16,
+  },
+  errorText: {
+    color: "#ff0000",
+    textAlign: "center",
     fontSize: 16,
   },
   content: {
