@@ -6,45 +6,62 @@ import {
   ActivityIndicator,
   TextInput,
   FlatList,
-  TouchableOpacity,
-  Alert,
 } from "react-native";
-// usei isso pois o SafeAreaView nativo vai ser deprecated e pesquisei uma alternativa recomendada
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaProvider,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { getPokemons } from "./services/api";
+import { PokemonCard } from "./components/PokemonCard";
 
 interface Pokemon {
   name: string;
   url: string;
 }
 
-export default function App() {
-  const [loading, setLoading] = useState<boolean>(true);
+function PokedexApp() {
+  const insets = useSafeAreaInsets();
+  const [loading, setLoading] = useState(true);
   const [pokemons, setPokemons] = useState<Pokemon[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState<string>("");
-  const [offset, setOffset] = useState<number>(0);
-  const [loadingMore, setLoadingMore] = useState<boolean>(false);
+  const [search, setSearch] = useState("");
+  const [offset, setOffset] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
   const LIMIT = 30;
 
-  const filteredPokemons = pokemons.filter((pokemon) =>
-    pokemon.name.toLowerCase().includes(search.toLowerCase()),
+  const filteredPokemons = pokemons.filter((p) =>
+    p.name.toLowerCase().includes(search.toLowerCase()),
   );
 
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
-        setError(null);
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        setLoading(false);
+        const data = await getPokemons(0, LIMIT);
+        setPokemons(data);
       } catch (err) {
         setError("Falha ao carregar Pokémons. Verifique sua conexão.");
+      } finally {
         setLoading(false);
       }
     };
     loadData();
   }, []);
+
+  const loadMorePokemons = async () => {
+    if (loadingMore || search.length > 0) return;
+    try {
+      setLoadingMore(true);
+      const newOffset = offset + LIMIT;
+      const newPokemons = await getPokemons(newOffset, LIMIT);
+      setPokemons([...pokemons, ...newPokemons]);
+      setOffset(newOffset);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -63,143 +80,66 @@ export default function App() {
     );
   }
 
-  const renderEmptyContainer = () => {
-    if (search.length > 0) {
-      return (
-        <View style={styles.center}>
-          <Text style={styles.emptyText}>
-            Nenhum Pokémon encontrado para "{search}".
-          </Text>
-        </View>
-      );
-    }
-    return (
-      <View style={styles.center}>
-        <Text style={styles.emptyText}>
-          Nenhum Pokémon para exibir no momento.
-        </Text>
+  return (
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Pokédex</Text>
       </View>
-    );
-  };
+      <View style={styles.content}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Buscar Pokémon..."
+          value={search}
+          onChangeText={setSearch}
+        />
+        <FlatList
+          data={filteredPokemons}
+          keyExtractor={(item, index) => `${item.name}-${index}`}
+          renderItem={({ item }) => <PokemonCard name={item.name} />}
+          onEndReached={loadMorePokemons}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={
+            loadingMore ? <ActivityIndicator color="#ff0000" /> : null
+          }
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>
+              {search ? `Nenhum Pokémon para "${search}"` : "Lista vazia."}
+            </Text>
+          }
+        />
+      </View>
+    </View>
+  );
+}
 
-  const loadMorePokemons = async () => {
-    if (loadingMore) return;
-
-    try {
-      setLoadingMore(true);
-      const newOffset = offset + LIMIT;
-
-      const newPokemons = await getPokemons(newOffset, LIMIT);
-
-      setPokemons([...pokemons, ...newPokemons]);
-      setOffset(newOffset);
-      setLoadingMore(false);
-    } catch (err) {
-      console.error("Erro ao carregar mais:", err);
-      setLoadingMore(false);
-    }
-  };
-
+export default function App() {
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Pokédex</Text>
-        </View>
-
-        <View style={styles.content}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Buscar Pokémon..."
-            value={search}
-            onChangeText={setSearch}
-          />
-
-          {}
-          <FlatList
-            data={filteredPokemons}
-            keyExtractor={(item, index) => `${item.name}-${index}`}
-            renderItem={({ item }) => (
-              <View style={styles.pokemonCard}>
-                <Text style={styles.pokemonName}>
-                  {item.name.toUpperCase()}
-                </Text>
-              </View>
-            )}
-            onEndReached={loadMorePokemons}
-            onEndReachedThreshold={0.2}
-            ListFooterComponent={
-              loadingMore ? (
-                <View style={styles.footerLoading}>
-                  <ActivityIndicator size="small" color="#ff0000" />
-                </View>
-              ) : null
-            }
-            ListEmptyComponent={renderEmptyContainer}
-          />
-        </View>
-      </SafeAreaView>
+      <PokedexApp />
     </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
+  container: { flex: 1, backgroundColor: "#fff" },
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
   },
-  header: {
-    padding: 20,
-    backgroundColor: "#ff0000",
-    alignItems: "center",
-  },
-  title: {
-    fontSize: 22,
-    color: "#fff",
-    fontWeight: "bold",
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-  },
-  errorText: {
-    color: "#ff0000",
-    textAlign: "center",
-    fontSize: 16,
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
-  emptyText: {
-    textAlign: "center",
-    color: "#666",
-  },
+  header: { padding: 20, backgroundColor: "#ff0000", alignItems: "center" },
+  title: { fontSize: 22, color: "#fff", fontWeight: "bold" },
+  loadingText: { marginTop: 10, fontSize: 16 },
+  errorText: { color: "#ff0000", textAlign: "center", fontSize: 16 },
+  content: { flex: 1, padding: 20 },
+  emptyText: { textAlign: "center", color: "#666", marginTop: 20 },
   searchInput: {
-    height: 40,
+    height: 45,
     borderColor: "#ccc",
     borderWidth: 1,
     borderRadius: 8,
-    paddingHorizontal: 10,
+    paddingHorizontal: 15,
     marginBottom: 20,
-  },
-  pokemonCard: {
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  pokemonName: {
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  footerLoading: {
-    paddingVertical: 20,
-    alignItems: "center",
   },
 });
