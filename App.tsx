@@ -6,9 +6,12 @@ import {
   ActivityIndicator,
   TextInput,
   FlatList,
+  TouchableOpacity,
+  Alert,
 } from "react-native";
 // usei isso pois o SafeAreaView nativo vai ser deprecated e pesquisei uma alternativa recomendada
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { getPokemons } from "./services/api";
 
 interface Pokemon {
   name: string;
@@ -20,6 +23,9 @@ export default function App() {
   const [pokemons, setPokemons] = useState<Pokemon[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState<string>("");
+  const [offset, setOffset] = useState<number>(0);
+  const [loadingMore, setLoadingMore] = useState<boolean>(false);
+  const LIMIT = 30;
 
   const filteredPokemons = pokemons.filter((pokemon) =>
     pokemon.name.toLowerCase().includes(search.toLowerCase()),
@@ -76,6 +82,24 @@ export default function App() {
     );
   };
 
+  const loadMorePokemons = async () => {
+    if (loadingMore) return;
+
+    try {
+      setLoadingMore(true);
+      const newOffset = offset + LIMIT;
+
+      const newPokemons = await getPokemons(newOffset, LIMIT);
+
+      setPokemons([...pokemons, ...newPokemons]);
+      setOffset(newOffset);
+      setLoadingMore(false);
+    } catch (err) {
+      console.error("Erro ao carregar mais:", err);
+      setLoadingMore(false);
+    }
+  };
+
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
@@ -94,12 +118,23 @@ export default function App() {
           {}
           <FlatList
             data={filteredPokemons}
-            keyExtractor={(item) => item.name}
+            keyExtractor={(item, index) => `${item.name}-${index}`}
             renderItem={({ item }) => (
               <View style={styles.pokemonCard}>
-                <Text>{item.name}</Text>
+                <Text style={styles.pokemonName}>
+                  {item.name.toUpperCase()}
+                </Text>
               </View>
             )}
+            onEndReached={loadMorePokemons}
+            onEndReachedThreshold={0.2}
+            ListFooterComponent={
+              loadingMore ? (
+                <View style={styles.footerLoading}>
+                  <ActivityIndicator size="small" color="#ff0000" />
+                </View>
+              ) : null
+            }
             ListEmptyComponent={renderEmptyContainer}
           />
         </View>
@@ -158,5 +193,13 @@ const styles = StyleSheet.create({
     padding: 15,
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
+  },
+  pokemonName: {
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  footerLoading: {
+    paddingVertical: 20,
+    alignItems: "center",
   },
 });
