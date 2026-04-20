@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { StyleSheet, Text, View, ActivityIndicator } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  View,
+  ActivityIndicator,
+  TextInput,
+  FlatList,
+} from "react-native";
 // usei isso pois o SafeAreaView nativo vai ser deprecated e pesquisei uma alternativa recomendada
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
@@ -12,6 +19,11 @@ export default function App() {
   const [loading, setLoading] = useState<boolean>(true);
   const [pokemons, setPokemons] = useState<Pokemon[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState<string>("");
+
+  const filteredPokemons = pokemons.filter((pokemon) =>
+    pokemon.name.toLowerCase().includes(search.toLowerCase()),
+  );
 
   useEffect(() => {
     const loadData = async () => {
@@ -45,6 +57,25 @@ export default function App() {
     );
   }
 
+  const renderEmptyContainer = () => {
+    if (search.length > 0) {
+      return (
+        <View style={styles.center}>
+          <Text style={styles.emptyText}>
+            Nenhum Pokémon encontrado para "{search}".
+          </Text>
+        </View>
+      );
+    }
+    return (
+      <View style={styles.center}>
+        <Text style={styles.emptyText}>
+          Nenhum Pokémon para exibir no momento.
+        </Text>
+      </View>
+    );
+  };
+
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
@@ -53,12 +84,24 @@ export default function App() {
         </View>
 
         <View style={styles.content}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Buscar Pokémon..."
+            value={search}
+            onChangeText={setSearch}
+          />
+
           {}
-          {pokemons.length === 0 ? (
-            <Text style={styles.emptyText}>A lista está vazia.</Text>
-          ) : (
-            <Text>Lista carregada com sucesso!</Text>
-          )}
+          <FlatList
+            data={filteredPokemons}
+            keyExtractor={(item) => item.name}
+            renderItem={({ item }) => (
+              <View style={styles.pokemonCard}>
+                <Text>{item.name}</Text>
+              </View>
+            )}
+            ListEmptyComponent={renderEmptyContainer}
+          />
         </View>
       </SafeAreaView>
     </SafeAreaProvider>
@@ -102,5 +145,18 @@ const styles = StyleSheet.create({
   emptyText: {
     textAlign: "center",
     color: "#666",
+  },
+  searchInput: {
+    height: 40,
+    borderColor: "#ccc",
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    marginBottom: 20,
+  },
+  pokemonCard: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
   },
 });
