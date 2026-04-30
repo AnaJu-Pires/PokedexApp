@@ -38,3 +38,48 @@ Não, não é uma abordagem sustentável para um aplicativo em crescimento.
 **Pontos Fracos (o que poderia ser melhorado):**
 1. **Repetição de lógica assíncrona ("Boilerplate" de Fetch)**: Ambas as telas possuem um bloco enorme de gerenciar `loading`, `data` e `error` atrelado a um `useEffect`. Isso poderia ser resolvido adotando o padrão MVVM, onde toda a lógica de useState e useEffect é extraída para um arquivo de ViewModel (como usePokedexViewModel) , garantindo que a View não contenha nenhum useState diretamente.
 2. **Tipagem do TypeScript negligenciada em pontos chave**: Na `PokemonDetailScreen`, praticamente todos os estados cruciais e dados mapeados utilizam `any` (ex: `useState<any>`, `entry: any`). Isso neutraliza o principal benefício do TypeScript, que é garantir segurança e autocompletar em tempo de desenvolvimento. Modelar interfaces (Types) adequadas para o retorno da PokeAPI seria uma grande melhoria.
+
+
+# Proposta de Refatoração para MVP ou MVVM
+
+## 1. Padrão Escolhido: 
+*Declare qual padrão você escolheu (MVP ou MVVM) e justifique brevemente por que o considera uma boa opção para este aplicativo.*
+*R:* **MVVM (Model-View-ViewModel)**  
+Escolhi o MVVM porque ele encaixa muito bem com o React Native usando Custom Hooks. A ideia é tirar toda a lógica da PokedexScreen e deixar ela cuidando só da parte visual. Isso deixa o código bem mais limpo de dar manutenção e facilita muito se a gente precisar testar a lógica de busca depois, já que ela não fica amarrada na renderização da tela
+
+## 2. Nova Estrutura de Arquivos:
+*Desenhe a nova estrutura de diretórios para a tela da Pokédex. Mostre onde os novos arquivos (como PokedexPresenter.ts ou usePokedexViewModel.ts) estariam localizados.*
+*R:*
+PokedexApp/  
+└─ src/  
+   ├─ screens/  
+   │  └─ Pokedex/  
+   │     ├─ PokedexScreen.tsx       <-- só a parte visual  
+   │     └─ usePokedexViewModel.ts  <-- toda a lógica e estados  
+   ├─ components/                   <-- componentes globais que possam reutilizaveis(ex: PokemonCard)  
+   ├─ services/                     <-- comunicação com a api  
+   ├─ utils/                        <-- funções de ajuda (formatador de tesxto, datas...)  
+   └─ types/                        <-- tipos do TypeScript  
+      └─ pokemon.ts  
+
+## 3. Divisão de Responsabilidades:
+- *O que ficaria na View (PokedexScreen.tsx)? Como ela consumiria o ViewModel?*
+*R:*Ficaria apenas a parte visual (componentes como View, Text, FlatList e os estilos). Zero lógica de negócio, sem nenhum useState ou useEffect.  
+const { filteredList, isLoading, searchQuery, setSearchQuery } = usePokedexViewModel();
+- *O que ficaria no ViewModel (ex: usePokedexViewModel)? Quais estados (list, isLoading) e funções (setSearchQuery) ele exporia?*
+*R: *No ViewModel ficaria toda a lógica nececessária para gerenciar os dados da tela, incluindo os hooks useState para a lista e para a busca, o useEffect que faz o fetch na API e a lógica que filtra o array de Pokémons em tempo real. Ele mostra para a View apenas o que ela precisa para se desenhar, como os estados da lista já filtrada (list), o status de carregamento (isLoading), o termo atual da pesquisa (searchQuery) e possíveis mensagens de erro, além das funções setSearchQuery, para atualizar o campo de busca, e loadMore, para buscar a próxima página de dados.
+
+## 4. Fluxo de Dados:
+(Usuário digita Pikachu)  
+          |  
+          v  
+(View)  
+  Aciona a função setSearchQuery() do Hook  
+          |  
+          v  
+(ViewModel)  
+  Filtra a lista original (em memória) e atualiza a 'filteredList'  
+          |  
+          v  
+(View)  
+  Recebe a 'filteredList' atualizada e mostra na FlatList  
